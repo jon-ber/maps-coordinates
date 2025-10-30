@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dynamic Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <style>
+        #map { height: 100vh; width: 100%; }
+        body { padding: 0; margin: 0; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script>
+    // 4. Create a default location in case no parameters are passed
+    var defaultLocations = [
+        [51.505, -0.09, "Default Location (London)"]
+    ];
+
+    // 5. Get the URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const locationsParam = urlParams.get('locations'); // e.g., "lat,lon,title|lat,lon,title"
+    
+    var locations = [];
+
+    // 6. Parse the 'locations' parameter string
+    if (locationsParam) {
+        try {
+            const locationsArray = locationsParam.split('|');
+            
+            locations = locationsArray.map(locString => {
+                const parts = locString.split(',');
+                
+                const lat = parseFloat(parts[0]);
+                const lon = parseFloat(parts[1]);
+                
+                // Join the rest of the parts for the title, in case the title itself had a comma
+                const title = parts.slice(2).join(',') || `Location (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+
+                if (isNaN(lat) || isNaN(lon)) return null; // Skip bad data
+
+                return [lat, lon, title];
+
+            }).filter(loc => loc !== null); // Filter out any bad entries
+
+            if (locations.length === 0) {
+                locations = defaultLocations;
+            }
+
+        } catch (e) {
+            console.error("Error parsing locations:", e);
+            locations = defaultLocations; // Fallback to default on error
+        }
+    } else {
+        // No 'locations' parameter found, use the default
+        locations = defaultLocations;
+    }
+
+    // 7. Initialize the map
+    // We'll set the view to the first location in our new dynamic array
+    var map = L.map('map').setView([locations[0][0], locations[0][1]], 10);
+
+    // 8. Add the OpenStreetMap tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+    // 9. Loop through the locations and add markers
+    var markers = [];
+    for (var i = 0; i < locations.length; i++) {
+        var lat = locations[i][0];
+        var lon = locations[i][1];
+        var popupText = locations[i][2];
+        
+        var marker = L.marker([lat, lon]).addTo(map);
+        marker.bindPopup(popupText); // Add a popup
+        markers.push(marker); // Add to a list for later
+    }
+
+    // 10. Automatically zoom the map to fit all markers
+    if (markers.length > 0) {
+        var group = new L.featureGroup(markers);
+        map.fitBounds(group.getBounds().pad(0.5)); // .pad(0.5) adds padding
+    }
+
+</script>
+
+</body>
+</html>
